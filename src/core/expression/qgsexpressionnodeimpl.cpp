@@ -494,6 +494,39 @@ QVariant QgsExpressionNodeBinaryOperator::evalNode( QgsExpression *parent, const
       }
       else
       {
+        // Do datetime comparison if one of the two values is a QDateTime
+        // (and fall back to using string comparison is conversion fails)
+        if ( vL.userType() == QMetaType::Type::QDateTime )
+        {
+          QDateTime dR = vR.toDateTime();
+          if (dR.isValid()) {
+            QDateTime dL = QgsExpressionUtils::getDateTimeValue( vL, parent );
+            ENSURE_NO_EVAL_ERROR
+
+            // while QDateTime has innate handling of timezones, we don't expose these ANYWHERE
+            // in QGIS. So to avoid confusion where seemingly equal datetime values give unexpected
+            // results (due to different hidden timezones), we force all datetime comparisons to treat
+            // all datetime values as having the same time zone
+            dL.setTimeSpec( Qt::UTC );
+            dR.setTimeSpec( Qt::UTC );
+
+            return compare( dR.msecsTo( dL ) ) ? TVL_True : TVL_False;
+          }
+        }
+        else if ( vR.userType() == QMetaType::Type::QDateTime )
+        {
+          QDateTime dL = vL.toDateTime();
+          if (dL.isValid()) {
+            QDateTime dR = QgsExpressionUtils::getDateTimeValue( vR, parent );
+            ENSURE_NO_EVAL_ERROR
+
+            dL.setTimeSpec( Qt::UTC );
+            dR.setTimeSpec( Qt::UTC );
+
+            return compare( dR.msecsTo( dL ) ) ? TVL_True : TVL_False;
+          }
+        }
+
         // do string comparison otherwise
         QString sL = QgsExpressionUtils::getStringValue( vL, parent );
         ENSURE_NO_EVAL_ERROR
