@@ -100,7 +100,7 @@ QgsRasterCalcDialog::QgsRasterCalcDialog( QgsRasterLayer *rasterLayer, QgsMapCan
   mOutputLayer->setStorageMode( QgsFileWidget::SaveFile );
   mOutputLayer->setDialogTitle( tr( "Enter Result File" ) );
   mOutputLayer->setDefaultRoot( settings.value( QStringLiteral( "/RasterCalculator/lastOutputDir" ), QDir::homePath() ).toString() );
-  connect( mOutputLayer, &QgsFileWidget::fileChanged, this, [=]() { setAcceptButtonState(); } );
+  connect( mOutputLayer, &QgsFileWidget::fileChanged, this, [this]() { setAcceptButtonState(); } );
 
   connect( mUseVirtualProviderCheckBox, &QCheckBox::clicked, this, &QgsRasterCalcDialog::setOutputToVirtual );
 
@@ -300,11 +300,11 @@ bool QgsRasterCalcDialog::outputLayerExists() const
   }
 }
 
-QStringList QgsRasterCalcDialog::createOptions() const
+QStringList QgsRasterCalcDialog::creationOptions() const
 {
   const QString layerName = QFileInfo( mOutputLayer->filePath() ).baseName();
 
-  QStringList options = mCreateOptionsGroupBox->isChecked() ? mCreateOptionsWidget->options() : QStringList();
+  QStringList options = mCreationOptionsGroupBox->isChecked() ? mCreationOptionsWidget->options() : QStringList();
   if ( outputFormat() == QLatin1String( "GPKG" ) )
   {
     // Overwrite the GPKG table options
@@ -382,8 +382,8 @@ void QgsRasterCalcDialog::mExpressionTextEdit_textChanged()
 
 void QgsRasterCalcDialog::mOutputFormatComboBox_currentIndexChanged( const QString & )
 {
-  mCreateOptionsWidget->setFormat( outputFormat() );
-  mCreateOptionsWidget->update();
+  mCreationOptionsWidget->setFormat( outputFormat() );
+  mCreationOptionsWidget->update();
 }
 
 void QgsRasterCalcDialog::setAcceptButtonState()

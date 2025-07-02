@@ -52,6 +52,7 @@ class DoxygenParser:
         self.acceptable_missing_brief = acceptable_missing_brief
         self.documentable_members = 0
         self.documented_members = 0
+        self.all_undocumented_members = {}
         self.undocumented_members = {}
         self.noncompliant_members = {}
         self.broken_links = {}
@@ -59,6 +60,7 @@ class DoxygenParser:
         self.groups = {}
         self.classes_missing_group = []
         self.classes_missing_brief = []
+        self.all_classes_missing_version_added = []
         self.classes_missing_version_added = []
         # for some reason the Doxygen generation on Travis refuses to assign these classes to groups
         self.acceptable_missing_group = [
@@ -172,15 +174,15 @@ class DoxygenParser:
                             and not has_brief_description
                         ):
                             self.classes_missing_brief.append(class_name)
-                        if (
-                            class_name not in self.acceptable_missing_added_note
-                            and not found_version_added
-                        ):
-                            self.classes_missing_version_added.append(class_name)
+                        if not found_version_added:
+                            self.all_classes_missing_version_added.append(class_name)
+                            if class_name not in self.acceptable_missing_added_note:
+                                self.classes_missing_version_added.append(class_name)
 
-                        # GEN LIST
-                        # if len(undocumented) > 0:
-                        #     print('"%s": [%s],' % (class_name, ", ".join(['"%s"' % e.replace('"', '\\"') for e in undocumented])))
+                        if undocumented:
+                            self.all_undocumented_members[class_name] = sorted(
+                                list(undocumented)
+                            )
 
                         unacceptable_undocumented = undocumented - set(
                             acceptable_missing
@@ -310,14 +312,16 @@ class DoxygenParser:
                     has_brief_description |= bool(text.strip())
 
         class_name = e.find("compoundname").text
-        if re.match(rf"\s*(the )?{class_name}.*", brief_description, re.IGNORECASE):
+        if re.match(
+            rf"\s*((?:the|a) )?{class_name}.*", brief_description, re.IGNORECASE
+        ):
             noncompliant_members.append(
                 {
                     "Brief description": f"Brief {brief_description} is non-compliant.\n\nDon't start a brief class descriptions with 'The MyClassName...' or 'MyClassName is responsible for...'. Use just 'Responsible for...'"
                 }
             )
         if re.match(
-            rf"\s*(?:this class|a class|it|this is|class)\b.*",
+            rf"\s*(?:this class|the class|a class|it|this is|class)\b.*",
             brief_description,
             re.IGNORECASE,
         ):
@@ -330,6 +334,13 @@ class DoxygenParser:
             noncompliant_members.append(
                 {
                     "Brief description": f"Brief is too long {len(brief_description)} vs {DoxygenParser.MAX_LEN_CLASS_BRIEF} maximum. Split into a shorter brief and longer detail paragraphs."
+                }
+            )
+
+        if not brief_description[0].isupper() and not brief_description[0].isnumeric():
+            noncompliant_members.append(
+                {
+                    "Brief description": f"Brief '{brief_description}' is not sentence case, starting with a capital letter. Ensure briefs are a full sentence."
                 }
             )
 

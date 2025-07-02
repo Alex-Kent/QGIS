@@ -38,6 +38,7 @@ class QValidator;
 
 class QgisAppInterface;
 class QgisAppStyleSheet;
+class QgsAppDbUtils;
 class QgsAnnotation;
 class QgsMapCanvasAnnotationItem;
 class QgsAuthManager;
@@ -325,8 +326,12 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! Returns the messageBar object which allows displaying unobtrusive messages to the user.
     QgsMessageBar *messageBar();
 
-    //! Open the message log dock widget
-    void openMessageLog();
+    /**
+     * Opens the message log dock widget, and optionally activates a specific tab by name.
+     *
+     * \param tabName Name of the tab to be activated.
+     */
+    void openMessageLog( const QString &tabName = QString() );
 
     //! Adds a widget to the user input tool bar
     void addUserInputWidget( QWidget *widget );
@@ -460,7 +465,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
      *
      * \since QGIS 3.36
      */
-    Qgs3DMapCanvas *createNewMapCanvas3D( const QString &name );
+    Qgs3DMapCanvas *createNewMapCanvas3D( const QString &name, Qgis::SceneMode sceneMode );
 
     /**
      * Opens a 3D view canvas for a 3D map view called \a name.
@@ -935,6 +940,14 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void setGpsPanelConnection( QgsGpsConnection *connection );
 
     /**
+     * Access the GPS digitizing object. This will be an instance of {\see QgsAppGpsDigitizing}
+     * \returns The GPS digitizing instance.
+     *
+     * \since QGIS 3.44
+     */
+    QgsAppGpsDigitizing *gpsDigitizing();
+
+    /**
      * Returns the GPS settings menu;
      */
     QgsAppGpsSettingsMenu *gpsSettingsMenu();
@@ -1284,6 +1297,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     //! Update project menu with the project templates
     void updateProjectFromTemplates();
+
+    //! Returns pointer to the application database utilities
+    QgsAppDbUtils *dbUtils();
 
     /**
      *
@@ -1733,6 +1749,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
 
     //! Creates a new 3D map canvas view
     void new3DMapCanvas();
+
+    //! Creates a new 3D map canvas view in globe mode
+    void new3DMapCanvasGlobe();
 
     //! Create a new empty vector layer
     void newVectorLayer();
@@ -2532,8 +2551,6 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QMenu *mFeatureActionMenu = nullptr;
     //! Popup menu
     QMenu *mPopupMenu = nullptr;
-    //! Top level database menu
-    QMenu *mDatabaseMenu = nullptr;
     //! Top level web menu
     QMenu *mWebMenu = nullptr;
 
@@ -2768,6 +2785,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     QgsScopedDevToolWidgetFactory mDocumentationWidgetFactory;
 
     std::vector<QgsScopedOptionsWidgetFactory> mOptionWidgetFactories;
+    std::unique_ptr< QgsAppDbUtils > mAppDbUtils;
 
     QMap<QString, QToolButton *> mAnnotationItemGroupToolButtons;
     QAction *mAnnotationsItemInsertBefore = nullptr; // Used to insert annotation items at the appropriate location in the annotations toolbar

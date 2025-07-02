@@ -43,6 +43,7 @@ class QgsCustomDropHandler;
 class QgsCustomProjectOpenHandler;
 class QgsLayoutCustomDropHandler;
 class QgsFeature;
+class QgsGpsToolsInterface;
 class QgsLayerTreeMapCanvasBridge;
 class QgsLayerTreeView;
 class QgsLayerTreeGroup;
@@ -105,6 +106,11 @@ class GUI_EXPORT QgisInterface : public QObject
     virtual QgsLayerTreeView *layerTreeView() = 0;
 
     /**
+     * Returns an interface to allow plugins to use QGIS GPS tools.
+     */
+    virtual QgsGpsToolsInterface *gpsTools() = 0;
+
+    /**
      * Add action to context menu for layers in the layer tree.
      * If allLayers is TRUE, then the action will be available for all layers of given type,
      * otherwise the action will be available only for specific layers added with addCustomActionForLayer()
@@ -157,10 +163,11 @@ class GUI_EXPORT QgisInterface : public QObject
 
     /**
      * Create a new 3D map canvas with the specified unique \a name.
+     * \note Scene mode (local or globe) can be selected since QGIS 3.44.
      * \see closeMapCanvas3D()
      * \since QGIS 3.36
      */
-    virtual Qgs3DMapCanvas *createNewMapCanvas3D( const QString &name ) = 0;
+    virtual Qgs3DMapCanvas *createNewMapCanvas3D( const QString &name, Qgis::SceneMode sceneMode = Qgis::SceneMode::Local ) = 0;
 
     /**
      * Closes the additional map canvas with matching \a name.
@@ -1051,9 +1058,11 @@ class GUI_EXPORT QgisInterface : public QObject
     virtual void addToolBar( QToolBar *toolbar SIP_TRANSFER, Qt::ToolBarArea area = Qt::TopToolBarArea ) = 0;
 
     /**
-     * Opens the message log dock widget.
+     * Opens the message log dock widget, and optionally activates a specific tab by name.
+     *
+     * \param tabName Name of the tab to be activated (since QGIS 3.44)
      */
-    virtual void openMessageLog() = 0;
+    virtual void openMessageLog( const QString &tabName = QString() ) = 0;
 
     //! Adds a widget to the user input tool bar.
     virtual void addUserInputWidget( QWidget *widget ) = 0;
@@ -1502,9 +1511,10 @@ class GUI_EXPORT QgisInterface : public QObject
      * Any existing GPS connection used by the widget will be disconnect and replaced with this connection. The connection
      * is automatically registered within the QgsApplication::gpsConnectionRegistry().
      *
+     * \deprecated QGIS 3.44. Use the method from gpsTools() instead.
      * \since QGIS 3.16
      */
-    virtual void setGpsPanelConnection( QgsGpsConnection *connection SIP_TRANSFER ) = 0;
+    Q_DECL_DEPRECATED virtual void setGpsPanelConnection( QgsGpsConnection *connection SIP_TRANSFER ) = 0 SIP_DEPRECATED;
 
     /**
      * Sets whether changes to the active layer should be temporarily

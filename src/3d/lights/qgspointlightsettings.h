@@ -27,7 +27,7 @@ class QDomElement;
 
 /**
  * \ingroup qgis_3d
- * \brief Definition of a point light in a 3D map scene
+ * \brief Definition of a point light in a 3D map scene.
  *
  * Total light at the distance D from a point light with intensity I
  * is (I / TA) where TA is total attenuation which is calculated as
@@ -79,7 +79,7 @@ class _3D_EXPORT QgsPointLightSettings : public QgsLightSource
     void setQuadraticAttenuation( float value ) { mQuadraticAttenuation = value; }
 
     // TODO c++20 - replace with = default
-    bool operator==( const QgsPointLightSettings &other );
+    bool operator==( const QgsPointLightSettings &other ) const;
 
   private:
     QgsVector3D mPosition { 0, 0, 1000 };

@@ -208,7 +208,7 @@ class CORE_EXPORT QgsExpression
       /**
        * The type of parser error that was found.
        */
-      ParserErrorType errorType = ParserErrorType::Unknown;
+      QgsExpression::ParserError::ParserErrorType errorType = QgsExpression::ParserError::ParserErrorType::Unknown;
 
       /**
        * The message for the error at this location.
@@ -332,7 +332,7 @@ class CORE_EXPORT QgsExpression
 
     /**
      * Returns a list of all variables which are used in this expression.
-     * If the list contains a NULL QString, there is a variable name used
+     * If the list contains an empty QString, there is a variable name used
      * which is determined at runtime.
      *
      * \note In contrast to the referencedColumns() function this method
@@ -821,7 +821,11 @@ class CORE_EXPORT QgsExpression
     //! \note not available in Python bindings
     static void initFunctionHelp() SIP_SKIP;
     //! \note not available in Python bindings
+    static void buildFunctionHelp() SIP_SKIP;
+    //! \note not available in Python bindings
     static void initVariableHelp() SIP_SKIP;
+    //! \note not available in Python bindings
+    static void buildVariableHelp() SIP_SKIP;
 
     friend class QgsExpressionNodeFunction;
     static QRecursiveMutex sFunctionsMutex;

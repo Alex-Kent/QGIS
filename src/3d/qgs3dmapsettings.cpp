@@ -460,6 +460,11 @@ QgsRectangle Qgs3DMapSettings::extent() const
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
+  if ( sceneMode() == Qgis::SceneMode::Globe )
+  {
+    QgsDebugError( QStringLiteral( "extent() should not be used with globe!" ) );
+  }
+
   return mExtent;
 }
 
@@ -469,6 +474,11 @@ void Qgs3DMapSettings::setExtent( const QgsRectangle &extent )
 
   if ( extent == mExtent )
     return;
+
+  if ( sceneMode() == Qgis::SceneMode::Globe )
+  {
+    QgsDebugError( QStringLiteral( "setExtent() should not be used with globe!" ) );
+  }
 
   mExtent = extent;
   const QgsPointXY center = mExtent.center();
@@ -518,6 +528,16 @@ void Qgs3DMapSettings::setCrs( const QgsCoordinateReferenceSystem &crs )
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
   mCrs = crs;
+
+  // for convenience, make sure the navigation mode is consistent with the scene mode
+  if ( sceneMode() == Qgis::SceneMode::Globe && mCameraNavigationMode == Qgis::NavigationMode::TerrainBased )
+  {
+    setCameraNavigationMode( Qgis::NavigationMode::GlobeTerrainBased );
+  }
+  else if ( sceneMode() == Qgis::SceneMode::Local && mCameraNavigationMode == Qgis::NavigationMode::GlobeTerrainBased )
+  {
+    setCameraNavigationMode( Qgis::NavigationMode::TerrainBased );
+  }
 }
 
 QgsCoordinateReferenceSystem Qgs3DMapSettings::crs() const

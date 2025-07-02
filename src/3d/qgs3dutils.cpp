@@ -25,6 +25,7 @@
 #include "qgsvectorlayer.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgsfeedback.h"
+#include "qgsglobechunkedentity.h"
 #include "qgsoffscreen3dengine.h"
 #include "qgs3dmapscene.h"
 #include "qgsabstract3dengine.h"
@@ -48,6 +49,9 @@
 #include <QOpenGLFunctions>
 #include <Qt3DLogic/QFrameAction>
 
+#if !defined( Q_OS_MAC )
+#include <GL/gl.h>
+#endif
 
 #if QT_VERSION < QT_VERSION_CHECK( 6, 0, 0 )
 #include <Qt3DRender/QBuffer>
@@ -255,7 +259,7 @@ bool Qgs3DUtils::exportAnimation( const Qgs3DAnimationSettings &animationSetting
     ++frameNo;
 
     const Qgs3DAnimationSettings::Keyframe kf = animationSettings.interpolate( time );
-    scene->cameraController()->setLookingAtPoint( kf.point, kf.dist, kf.pitch, kf.yaw );
+    scene->cameraController()->setLookingAtMapPoint( kf.point, kf.dist, kf.pitch, kf.yaw );
 
     QString fileName( fileNameTemplate );
     const QString frameNoPaddedLeft( QStringLiteral( "%1" ).arg( frameNo, numberOfDigits, 10, QChar( '0' ) ) ); // e.g. 0001
@@ -866,6 +870,12 @@ QHash<QgsMapLayer *, QVector<QgsRayCastingUtils::RayHit>> Qgs3DUtils::castRay( Q
     if ( !result.isEmpty() )
       results[nullptr] = result; // Terrain hits are not tied to a layer so we use nullptr as their key here
   }
+  if ( QgsGlobeEntity *globe = scene->globeEntity() )
+  {
+    const QVector<QgsRayCastingUtils::RayHit> result = globe->rayIntersection( r, context );
+    if ( !result.isEmpty() )
+      results[nullptr] = result; // Terrain hits are not tied to a layer so we use nullptr as their key here
+  }
   return results;
 }
 
@@ -1157,4 +1167,18 @@ QgsCameraPose Qgs3DUtils::lineSegmentToCameraPose( const QgsVector3D &startPoint
   cameraPose.setHeadingAngle( yawAngle );
 
   return cameraPose;
+}
+
+std::unique_ptr<Qt3DRender::QCamera> Qgs3DUtils::copyCamera( Qt3DRender::QCamera *cam )
+{
+  std::unique_ptr<Qt3DRender::QCamera> copy = std::make_unique<Qt3DRender::QCamera>();
+  copy->setPosition( cam->position() );
+  copy->setViewCenter( cam->viewCenter() );
+  copy->setUpVector( cam->upVector() );
+  copy->setProjectionMatrix( cam->projectionMatrix() );
+  copy->setNearPlane( cam->nearPlane() );
+  copy->setFarPlane( cam->farPlane() );
+  copy->setAspectRatio( cam->aspectRatio() );
+  copy->setFieldOfView( cam->fieldOfView() );
+  return copy;
 }

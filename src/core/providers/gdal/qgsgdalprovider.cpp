@@ -2961,7 +2961,7 @@ void buildSupportedRasterFileFilterAndExtensions( QString &fileFiltersString, QS
 
   QgsDebugMsgLevel( "Raster filter list built: " + fileFiltersString, 2 );
   QgsDebugMsgLevel( "Raster extension list built: " + extensions.join( ' ' ), 2 );
-}                               // buildSupportedRasterFileFilter_()
+}
 
 bool QgsGdalProvider::isValidRasterFileName( QString const &fileNameQString, QString &retErrMsg )
 {
@@ -3940,6 +3940,9 @@ void QgsGdalProvider::initBaseDataset()
         case GDT_Int16:
         case GDT_UInt32:
         case GDT_Int32:
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,11,0)
+        case GDT_Float16:
+#endif
         case GDT_Float32:
         case GDT_CInt16:
           myGdalDataType = GDT_Float32;
@@ -3953,6 +3956,10 @@ void QgsGdalProvider::initBaseDataset()
 #endif
           myGdalDataType = GDT_Float64;
           break;
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3,11,0)
+        case GDT_CFloat16:
+          break;
+#endif
         case GDT_CFloat64:
           break;
       }
@@ -3988,7 +3995,7 @@ QgsGdalProvider *QgsGdalProviderMetadata::createRasterDataProvider(
   int width, int height,
   double *geoTransform,
   const QgsCoordinateReferenceSystem &crs,
-  const QStringList &createOptions )
+  const QStringList &creationOptions )
 {
   //get driver
   GDALDriverH driver = GDALGetDriverByName( format.toLocal8Bit().data() );
@@ -3998,11 +4005,11 @@ QgsGdalProvider *QgsGdalProviderMetadata::createRasterDataProvider(
     return new QgsGdalProvider( uri, error );
   }
 
-  QgsDebugMsgLevel( "create options: " + createOptions.join( " " ), 2 );
+  QgsDebugMsgLevel( "creation options: " + creationOptions.join( " " ), 2 );
 
   //create dataset
   CPLErrorReset();
-  char **papszOptions = QgsGdalUtils::papszFromStringList( createOptions );
+  char **papszOptions = QgsGdalUtils::papszFromStringList( creationOptions );
   gdal::dataset_unique_ptr dataset( GDALCreate( driver, uri.toUtf8().constData(), width, height, nBands, ( GDALDataType )type, papszOptions ) );
   CSLDestroy( papszOptions );
   if ( !dataset )
@@ -4151,12 +4158,12 @@ QString QgsGdalProviderMetadata::filters( Qgis::FileFilterType type )
   return QString();
 }
 
-QString QgsGdalProvider::validateCreationOptions( const QStringList &createOptions, const QString &format )
+QString QgsGdalProvider::validateCreationOptions( const QStringList &creationOptions, const QString &format )
 {
   QString message;
 
   // first validate basic syntax with GDALValidateCreationOptions
-  message = QgsGdalUtils::validateCreationOptionsFormat( createOptions, format );
+  message = QgsGdalUtils::validateCreationOptionsFormat( creationOptions, format );
   if ( !message.isNull() )
     return message;
 
@@ -4169,8 +4176,8 @@ QString QgsGdalProvider::validateCreationOptions( const QStringList &createOptio
 
   // prepare a map for easier lookup
   QMap< QString, QString > optionsMap;
-  const auto constCreateOptions = createOptions;
-  for ( const QString &option : constCreateOptions )
+  const auto constCreationOptions = creationOptions;
+  for ( const QString &option : constCreationOptions )
   {
     QStringList opt = option.split( '=' );
     optionsMap[ opt[0].toUpper()] = opt[1];
@@ -4422,12 +4429,7 @@ QList<QgsProviderSublayerDetails> QgsGdalProviderMetadata::querySublayers( const
 
     // get supported extensions
     static std::once_flag initialized;
-    std::call_once( initialized, [ = ]
-    {
-      buildSupportedRasterFileFilterAndExtensions( sFilterString, sExtensions, sWildcards );
-      QgsDebugMsgLevel( QStringLiteral( "extensions: " ) + sExtensions.join( ' ' ), 2 );
-      QgsDebugMsgLevel( QStringLiteral( "wildcards: " ) + sWildcards.join( ' ' ), 2 );
-    } );
+    std::call_once( initialized, buildSupportedRasterFileFilterAndExtensions, sFilterString, sExtensions, sWildcards );
 
     const QString suffix = uriParts.value( QStringLiteral( "vsiSuffix" ) ).toString().isEmpty()
                            ? pathInfo.suffix().toLower()

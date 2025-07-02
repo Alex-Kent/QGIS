@@ -43,19 +43,20 @@ class QgsDirectionalLightSettings;
 class QgsCameraController;
 class QgsRectangle;
 class QgsPostprocessingEntity;
-class QgsAmbientOcclusionRenderEntity;
-class QgsPreviewQuad;
-class QgsAmbientOcclusionBlurEntity;
 class QgsAbstractRenderView;
 class QgsForwardRenderView;
 class QgsShadowRenderView;
+class QgsDepthRenderView;
 class QgsShadowSettings;
+class QgsDebugTextureEntity;
+class QgsAmbientOcclusionRenderView;
+class QgsAmbientOcclusionSettings;
 
 #define SIP_NO_FILE
 
 /**
  * \ingroup qgis_3d
- * \brief Container class that holds different objects related to frame graph of 3D scenes
+ * \brief Container class that holds different objects related to frame graphs of 3D scenes.
  *
  * A frame graph captures configuration of rendering passes when 3D scene gets rendered.
  *
@@ -74,17 +75,9 @@ class QgsFrameGraph : public Qt3DCore::QEntity
     //! Returns the root of the frame graph object
     Qt3DRender::QFrameGraphNode *frameGraphRoot() { return mRenderSurfaceSelector; }
 
-    /**
-     * Returns blurred ambient occlusion factor values texture
-     * \since QGIS 3.28
-     */
-    Qt3DRender::QTexture2D *blurredAmbientOcclusionFactorMap() { return mAmbientOcclusionBlurTexture; }
-
-    //! Returns a layer object used to indicate that an entity is to be rendered during the preview textures rendering pass
-    Qt3DRender::QLayer *previewLayer() { return mPreviewLayer; }
-
     //! Returns the main camera
     Qt3DRender::QCamera *mainCamera() { return mMainCamera; }
+
     //! Returns the postprocessing entity
     QgsPostprocessingEntity *postprocessingEntity() { return mPostprocessingEntity; }
 
@@ -92,73 +85,17 @@ class QgsFrameGraph : public Qt3DCore::QEntity
     Qt3DCore::QEntity *rubberBandsRootEntity() { return mRubberBandsRootEntity; }
 
     //! Returns the render capture object used to take an image of the scene
-    Qt3DRender::QRenderCapture *renderCapture() { return mRenderCapture; }
+    Qt3DRender::QRenderCapture *renderCapture();
 
     //! Returns the render capture object used to take an image of the depth buffer of the scene
-    Qt3DRender::QRenderCapture *depthRenderCapture() { return mDepthRenderCapture; }
+    Qt3DRender::QRenderCapture *depthRenderCapture();
 
     //! Sets whether frustum culling is enabled
     void setFrustumCullingEnabled( bool enabled );
 
-    /**
-     * Sets whether Screen Space Ambient Occlusion will be enabled
-     * \since QGIS 3.28
-     */
-    void setAmbientOcclusionEnabled( bool enabled );
-
-    /**
-     * Returns whether Screen Space Ambient Occlusion is enabled
-     * \since QGIS 3.28
-     */
-    bool ambientOcclusionEnabled() const { return mAmbientOcclusionEnabled; }
-
-    /**
-     * Sets the ambient occlusion intensity
-     * \since QGIS 3.28
-     */
-    void setAmbientOcclusionIntensity( float intensity );
-
-    /**
-     * Returns the ambient occlusion intensity
-     * \since QGIS 3.28
-     */
-    float ambientOcclusionIntensity() const { return mAmbientOcclusionIntensity; }
-
-    /**
-     * Sets the ambient occlusion radius
-     * \since QGIS 3.28
-     */
-    void setAmbientOcclusionRadius( float radius );
-
-    /**
-     * Returns the ambient occlusion radius
-     * \since QGIS 3.28
-     */
-    float ambientOcclusionRadius() const { return mAmbientOcclusionRadius; }
-
-    /**
-     * Sets the ambient occlusion threshold
-     * \since QGIS 3.28
-     */
-    void setAmbientOcclusionThreshold( float threshold );
-
-    /**
-     * Returns the ambient occlusion threshold
-     * \since QGIS 3.28
-     */
-    float ambientOcclusionThreshold() const { return mAmbientOcclusionThreshold; }
-
     //! Sets the clear color of the scene (background color)
     void setClearColor( const QColor &clearColor );
-    //! Adds an preview entity that shows a texture in real time for debugging purposes
-    QgsPreviewQuad *addTexturePreviewOverlay( Qt3DRender::QTexture2D *texture, const QPointF &centerNDC, const QSizeF &size, QVector<Qt3DRender::QParameter *> additionalShaderParameters = QVector<Qt3DRender::QParameter *>() );
 
-    //! Sets eye dome lighting shading related settings
-    void setupEyeDomeLighting( bool enabled, double strength, int distance );
-    //! Sets the shadow map debugging view port
-    void setupShadowMapDebugging( bool enabled, Qt::Corner corner, double size );
-    //! Sets the depth map debugging view port
-    void setupDepthMapDebugging( bool enabled, Qt::Corner corner, double size );
     //! Sets the size of the buffers used for rendering
     void setSize( QSize s );
 
@@ -167,12 +104,6 @@ class QgsFrameGraph : public Qt3DCore::QEntity
      * \since QGIS 3.18
      */
     void setRenderCaptureEnabled( bool enabled );
-
-    /**
-     * Returns whether it will be possible to render to an image
-     * \since QGIS 3.18
-     */
-    bool renderCaptureEnabled() const { return mRenderCaptureEnabled; }
 
     /**
      * Sets whether debug overlay is enabled
@@ -206,10 +137,11 @@ class QgsFrameGraph : public Qt3DCore::QEntity
     /**
      * Registers a new the render view \a renderView with name \a name.
      *
+     * \a topNode is where the new renderview will be attached to. If nullptr then it will be attached to the main viewport.
      * Will take ownership of the renderView.
      * \since QGIS 3.44
      */
-    bool registerRenderView( std::unique_ptr<QgsAbstractRenderView> renderView, const QString &name );
+    bool registerRenderView( std::unique_ptr<QgsAbstractRenderView> renderView, const QString &name, Qt3DRender::QFrameGraphNode *topNode = nullptr );
 
     /**
      * Unregisters the render view named \a name, if any
@@ -248,33 +180,60 @@ class QgsFrameGraph : public Qt3DCore::QEntity
     QgsForwardRenderView &forwardRenderView();
 
     /**
+     * Returns depth renderview
+     * \since QGIS 3.44
+     */
+    QgsDepthRenderView &depthRenderView();
+
+    /**
+     * Returns ambient occlusion renderview
+     * \since QGIS 3.44
+     */
+    QgsAmbientOcclusionRenderView &ambientOcclusionRenderView();
+
+    /**
      * Updates shadow bias, light and texture size according to \a shadowSettings and \a lightSources
      * \since QGIS 3.44
      */
     void updateShadowSettings( const QgsShadowSettings &shadowSettings, const QList<QgsLightSource *> &lightSources );
 
+    /**
+     * Updates settings for shadows debug map
+     * \since QGIS 3.44
+     */
+    void updateDebugShadowMapSettings( const Qgs3DMapSettings &settings );
+
+    /**
+     * Updates settings for depth debug map
+     * \since QGIS 3.44
+     */
+    void updateDebugDepthMapSettings( const Qgs3DMapSettings &settings );
+
+    /**
+     * Updates settings for ambient occlusion
+     * \since QGIS 3.44
+     */
+    void updateAmbientOcclusionSettings( const QgsAmbientOcclusionSettings &settings );
+
+    /**
+     * Updates settings for eye dome lighting
+     * \since QGIS 3.44
+     */
+    void updateEyeDomeSettings( const Qgs3DMapSettings &settings );
+
     static const QString FORWARD_RENDERVIEW;
     static const QString SHADOW_RENDERVIEW;
     static const QString AXIS3D_RENDERVIEW;
+    static const QString DEPTH_RENDERVIEW;
+    static const QString DEBUG_RENDERVIEW;
+    //! Ambient occlusion render view name
+    static const QString AMBIENT_OCCLUSION_RENDERVIEW;
 
   private:
     Qt3DRender::QRenderSurfaceSelector *mRenderSurfaceSelector = nullptr;
     Qt3DRender::QViewport *mMainViewPort = nullptr;
 
     Qt3DRender::QCamera *mMainCamera = nullptr;
-
-    // - The depth buffer render pass is made to copy the depth buffer into
-    //    an RGB texture that can be captured into a QImage and sent to the CPU for
-    //    calculating real 3D points from mouse coordinates (for zoom, rotation, drag..)
-    // Depth buffer render pass branch nodes:
-    Qt3DRender::QCameraSelector *mDepthRenderCameraSelector = nullptr;
-    Qt3DRender::QRenderStateSet *mDepthRenderStateSet = nullptr;
-    Qt3DRender::QLayerFilter *mDepthRenderLayerFilter = nullptr;
-    Qt3DRender::QRenderTargetSelector *mDepthRenderCaptureTargetSelector = nullptr;
-    Qt3DRender::QRenderCapture *mDepthRenderCapture = nullptr;
-    // Depth buffer processing pass texture related objects:
-    Qt3DRender::QTexture2D *mDepthRenderCaptureDepthTexture = nullptr;
-    Qt3DRender::QTexture2D *mDepthRenderCaptureColorTexture = nullptr;
 
     // Post processing pass branch nodes:
     Qt3DRender::QRenderTargetSelector *mRenderCaptureTargetSelector = nullptr;
@@ -283,75 +242,39 @@ class QgsFrameGraph : public Qt3DCore::QEntity
     Qt3DRender::QTexture2D *mRenderCaptureColorTexture = nullptr;
     Qt3DRender::QTexture2D *mRenderCaptureDepthTexture = nullptr;
 
-    // Ambient occlusion factor generation pass
-    Qt3DRender::QCameraSelector *mAmbientOcclusionRenderCameraSelector = nullptr;
-    Qt3DRender::QRenderStateSet *mAmbientOcclusionRenderStateSet = nullptr;
-    Qt3DRender::QLayerFilter *mAmbientOcclusionRenderLayerFilter = nullptr;
-    Qt3DRender::QRenderTargetSelector *mAmbientOcclusionRenderCaptureTargetSelector = nullptr;
-    // Ambient occlusion factor generation pass texture related objects:
-    Qt3DRender::QTexture2D *mAmbientOcclusionRenderTexture = nullptr;
-
-    // Ambient occlusion factor blur pass
-    Qt3DRender::QCameraSelector *mAmbientOcclusionBlurCameraSelector = nullptr;
-    Qt3DRender::QRenderStateSet *mAmbientOcclusionBlurStateSet = nullptr;
-    Qt3DRender::QLayerFilter *mAmbientOcclusionBlurLayerFilter = nullptr;
-    Qt3DRender::QRenderTargetSelector *mAmbientOcclusionBlurRenderCaptureTargetSelector = nullptr;
-    // Ambient occlusion factor blur pass texture related objects:
-    Qt3DRender::QTexture2D *mAmbientOcclusionBlurTexture = nullptr;
-
     // Rubber bands pass
     Qt3DRender::QCameraSelector *mRubberBandsCameraSelector = nullptr;
     Qt3DRender::QLayerFilter *mRubberBandsLayerFilter = nullptr;
     Qt3DRender::QRenderStateSet *mRubberBandsStateSet = nullptr;
     Qt3DRender::QRenderTargetSelector *mRubberBandsRenderTargetSelector = nullptr;
 
-    // Ambient occlusion related settings
-    bool mAmbientOcclusionEnabled = false;
-    float mAmbientOcclusionIntensity = 0.5f;
-    float mAmbientOcclusionRadius = 25.f;
-    float mAmbientOcclusionThreshold = 0.5f;
-
     QSize mSize = QSize( 1024, 768 );
-
-    bool mEyeDomeLightingEnabled = false;
-    double mEyeDomeLightingStrength = 1000.0;
-    int mEyeDomeLightingDistance = 1;
-
-    QgsPreviewQuad *mDebugShadowMapPreviewQuad = nullptr;
-    QgsPreviewQuad *mDebugDepthMapPreviewQuad = nullptr;
-
-    QEntity *mDepthRenderQuad = nullptr;
 
     QVector3D mLightDirection = QVector3D( 0.0, -1.0f, 0.0f );
 
     Qt3DCore::QEntity *mRootEntity = nullptr;
 
-    Qt3DRender::QLayer *mPreviewLayer = nullptr;
-    Qt3DRender::QLayer *mDepthRenderPassLayer = nullptr;
     Qt3DRender::QLayer *mRubberBandsLayer = nullptr;
 
     QgsPostprocessingEntity *mPostprocessingEntity = nullptr;
-    QgsAmbientOcclusionRenderEntity *mAmbientOcclusionRenderEntity = nullptr;
-    QgsAmbientOcclusionBlurEntity *mAmbientOcclusionBlurEntity = nullptr;
 
     Qt3DCore::QEntity *mRubberBandsRootEntity = nullptr;
 
-    QVector<QgsPreviewQuad *> mPreviewQuads;
+    //! shadow texture debugging
+    QgsDebugTextureEntity *mShadowTextureDebugging = nullptr;
+    //! depth texture debugging
+    QgsDebugTextureEntity *mDepthTextureDebugging = nullptr;
 
     void constructShadowRenderPass();
     void constructForwardRenderPass();
-    Qt3DRender::QFrameGraphNode *constructTexturesPreviewPass();
+    void constructDebugTexturePass( Qt3DRender::QFrameGraphNode *topNode = nullptr );
     Qt3DRender::QFrameGraphNode *constructPostprocessingPass();
-    Qt3DRender::QFrameGraphNode *constructDepthRenderPass();
-    Qt3DRender::QFrameGraphNode *constructAmbientOcclusionRenderPass();
-    Qt3DRender::QFrameGraphNode *constructAmbientOcclusionBlurPass();
+    void constructDepthRenderPass();
+    void constructAmbientOcclusionRenderPass();
     Qt3DRender::QFrameGraphNode *constructRubberBandsPass();
 
     Qt3DRender::QFrameGraphNode *constructSubPostPassForProcessing();
     Qt3DRender::QFrameGraphNode *constructSubPostPassForRenderCapture();
-    Qt3DRender::QFrameGraphNode *constructSubPostPassForTexturesPreview();
-
-    Qt3DCore::QEntity *constructDepthRenderQuad();
 
     bool mRenderCaptureEnabled = false;
 

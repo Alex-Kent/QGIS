@@ -18,6 +18,7 @@
 
 #include "qgsprocessingparameters.h"
 #include "qgsprocessingparametertype.h"
+#include "qgsprocessingoutputs.h"
 #include "qgsalignrasterdata.h"
 
 /**
@@ -29,12 +30,15 @@
  *
  * A valid value for this parameter is a list (QVariantList), where each
  * item is a map (QVariantMap) in this form:
+ *
+ * \code{.py}
  * {
  *   'inputFile':  string,
  *   'outputFile': string,
  *   'resampleMethod': int,
  *   'rescale': bool,
  * }
+ * \endcode
  *
  * Also it can accept lists (either string lists or QgsMapLayer list)
  * as well as individual layer object or string representing layer source.
@@ -124,6 +128,27 @@ class CORE_EXPORT QgsProcessingParameterTypeAlignRasterLayers : public QgsProces
              << QObject::tr( "str: layer source" )
              << QStringLiteral( "list[QgsMapLayer]" )
              << QStringLiteral( "QgsRasterLayer" );
+    }
+
+    QStringList acceptedParameterTypes() const override
+    {
+      return QStringList()
+             << QgsProcessingParameterMultipleLayers::typeName()
+             << QgsProcessingParameterMapLayer::typeName()
+             << QgsProcessingParameterVectorLayer::typeName()
+             << QgsProcessingParameterFeatureSource::typeName()
+             << QgsProcessingParameterFile::typeName()
+             << QgsProcessingParameterString::typeName();
+    }
+
+    QStringList acceptedOutputTypes() const override
+    {
+      return QStringList()
+             << QgsProcessingOutputString::typeName()
+             << QgsProcessingOutputMapLayer::typeName()
+             << QgsProcessingOutputVectorLayer::typeName()
+             << QgsProcessingOutputMultipleLayers::typeName()
+             << QgsProcessingOutputFile::typeName();
     }
 };
 

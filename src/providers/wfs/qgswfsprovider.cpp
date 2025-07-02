@@ -259,7 +259,7 @@ void QgsWFSProvider::issueInitialGetFeature()
     // Try to see if gml:description, gml:identifier, gml:name attributes are
     // present. So insert them temporarily in mShared->mFields so that the
     // GML parser can detect them.
-    const auto addGMLFields = [=]( bool forceAdd ) {
+    const auto addGMLFields = [this]( bool forceAdd ) {
       if ( mShared->mFields.indexOf( QLatin1String( "description" ) ) < 0 && ( forceAdd || mSampleFeatureHasDescription ) )
         mShared->mFields.append( QgsField( QStringLiteral( "description" ), QMetaType::Type::QString, QStringLiteral( "xsd:string" ) ) );
       if ( mShared->mFields.indexOf( QLatin1String( "identifier" ) ) < 0 && ( forceAdd || mSampleFeatureHasIdentifier ) )
@@ -1532,7 +1532,11 @@ bool QgsWFSProvider::readAttributesFromSchema( QDomDocument &schemaDoc, const QB
   geometryMaybeMissing = false;
   bool mayTryWithGMLAS = false;
   bool ret = readAttributesFromSchemaWithoutGMLAS( schemaDoc, prefixedTypename, geometryAttribute, fields, geomType, errorMsg, mayTryWithGMLAS );
-  if ( singleLayerContext && mayTryWithGMLAS && GDALGetDriverByName( "GMLAS" ) )
+
+  // Only consider GMLAS / ComplexFeatures mode if FeatureMode=DEFAULT and there
+  // is no edition capabilities, or if explicitly requested.
+  // Cf https://github.com/qgis/QGIS/pull/61493
+  if ( ( ( mShared->mURI.featureMode() == QgsWFSDataSourceURI::FeatureMode::Default && ( mCapabilities & Qgis::VectorProviderCapability::AddFeatures ) == 0 ) || mShared->mURI.featureMode() == QgsWFSDataSourceURI::FeatureMode::ComplexFeatures ) && singleLayerContext && mayTryWithGMLAS && GDALGetDriverByName( "GMLAS" ) )
   {
     QString geometryAttributeGMLAS;
     QgsFields fieldsGMLAS;

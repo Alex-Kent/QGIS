@@ -18,6 +18,7 @@
 
 #include "qgsprocessingparameters.h"
 #include "qgsprocessingparametertype.h"
+#include "qgsprocessingoutputs.h"
 #include "qgsdxfexport.h"
 
 /**
@@ -28,10 +29,13 @@
  *
  * A valid value for this parameter is a list (QVariantList), where each
  * item is a map (QVariantMap) in this form:
+ *
+ * \code{.py}
  * {
  *   'layer':  string or QgsMapLayer,
  *   'attributeIndex': int
  * }
+ * \endcode
  *
  * Also it can accept lists (either string lists or QgsVectorLayer list)
  * as well as individual layer object or string representing layer source.
@@ -121,6 +125,27 @@ class CORE_EXPORT QgsProcessingParameterTypeDxfLayers : public QgsProcessingPara
              << QObject::tr( "str: layer source" )
              << QStringLiteral( "list[QgsMapLayer]" )
              << QStringLiteral( "QgsVectorLayer" );
+    }
+
+    QStringList acceptedParameterTypes() const override
+    {
+      return QStringList()
+             << QgsProcessingParameterMultipleLayers::typeName()
+             << QgsProcessingParameterMapLayer::typeName()
+             << QgsProcessingParameterVectorLayer::typeName()
+             << QgsProcessingParameterFeatureSource::typeName()
+             << QgsProcessingParameterFile::typeName()
+             << QgsProcessingParameterString::typeName();
+    }
+
+    QStringList acceptedOutputTypes() const override
+    {
+      return QStringList()
+             << QgsProcessingOutputString::typeName()
+             << QgsProcessingOutputMapLayer::typeName()
+             << QgsProcessingOutputVectorLayer::typeName()
+             << QgsProcessingOutputMultipleLayers::typeName()
+             << QgsProcessingOutputFile::typeName();
     }
 };
 

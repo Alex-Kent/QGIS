@@ -36,7 +36,6 @@
 #include <Qt3DRender/QRenderSurfaceSelector>
 #include <Qt3DRender/QTexture>
 #include <Qt3DRender/QViewport>
-#include "qgsabstractrenderview.h"
 #include "qgsshadowrenderview.h"
 #include "qgsforwardrenderview.h"
 
@@ -105,7 +104,6 @@ QgsOffscreen3DEngine::QgsOffscreen3DEngine()
   mOffscreenSurface->create();
 
   mFrameGraph = new QgsFrameGraph( mOffscreenSurface, mSize, mCamera, mRoot );
-  mFrameGraph->setRenderCaptureEnabled( true );
   mFrameGraph->shadowRenderView().setEnabled( false );
   // Set this frame graph to be in use.
   // the render settings also sets itself as the parent of mSurfaceSelector

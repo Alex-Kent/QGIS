@@ -18,6 +18,7 @@
 #ifndef QGSSCALEMETHODWIDGET_H
 #define QGSSCALEMETHODWIDGET_H
 
+#include "qgis.h"
 #include "qgis_sip.h"
 #include "qgis_gui.h"
 #include <QWidget>
@@ -27,7 +28,7 @@ class QComboBox;
 
 /**
  * \ingroup gui
- * \brief A widget which which lets the user select from scale calculation methods.
+ * \brief A widget which lets the user select from scale calculation methods.
  * \since QGIS 3.44
  */
 class GUI_EXPORT QgsScaleMethodWidget : public QWidget

@@ -408,6 +408,9 @@ void myMessageOutput( QtMsgType type, const QMessageLogContext &, const QString 
            // warnings triggered from KDE libraries, not related to QGIS
            msg.contains( QLatin1String( "This plugin supports grabbing the mouse only for popup windows" ), Qt::CaseInsensitive ) || msg.contains( QLatin1String( "KLocalizedString" ), Qt::CaseInsensitive ) || msg.contains( QLatin1String( "KServiceTypeTrader" ), Qt::CaseInsensitive ) || msg.contains( QLatin1String( "No node found for item that was just removed" ), Qt::CaseInsensitive ) || msg.contains( QLatin1String( "Audio notification requested" ), Qt::CaseInsensitive ) ||
 
+           // something from deep within Qt6 (looks like a malformed SVG in a platform theme), not related to us
+           msg.contains( QLatin1String( "The requested buffer size is too big, ignoring" ) ) ||
+
            // coming from WebEngine:
            msg.contains( QLatin1String( "An OpenGL Core Profile was requested, but it is not supported on the current platform" ), Qt::CaseInsensitive ) )
         break;
@@ -1543,6 +1546,31 @@ int main( int argc, char *argv[] )
   // this should be done in QgsApplication::init() but it doesn't know the settings dir.
   QgsApplication::setMaxThreads( settings.value( QStringLiteral( "qgis/max_threads" ), -1 ).toInt() );
 
+  QFont defaultFont = QApplication::font();
+  bool defaultFontCustomized = false;
+  const double fontSize = settings.value( QStringLiteral( "/app/fontPointSize" ), defaultFont.pointSizeF() ).toDouble();
+  if ( fontSize != defaultFont.pointSizeF() )
+  {
+    defaultFont.setPointSizeF( fontSize );
+    defaultFontCustomized = true;
+  }
+
+  QString fontFamily = settings.value( QStringLiteral( "/app/fontFamily" ), defaultFont.family() ).toString();
+  if ( fontFamily != defaultFont.family() )
+  {
+    const QFont tempFont( fontFamily );
+    if ( tempFont.family() == fontFamily )
+    {
+      // font exists on system, proceed
+      defaultFont.setFamily( fontFamily );
+      defaultFontCustomized = true;
+    }
+  }
+  if ( defaultFontCustomized )
+  {
+    QApplication::setFont( defaultFont );
+  }
+
   QgisApp *qgis = new QgisApp( mypSplash, qgisAppOptions, rootProfileFolder, profileName ); // "QgisApp" used to find canonical instance
   qgis->setObjectName( QStringLiteral( "QgisApp" ) );
 
@@ -1637,23 +1665,14 @@ int main( int argc, char *argv[] )
   {
     if ( !pythonfile.isEmpty() )
     {
-#ifdef Q_OS_WIN
-      //replace backslashes with forward slashes
-      pythonfile.replace( '\\', '/' );
-#endif
       pythonArgs.prepend( pythonfile );
     }
-
-    QgsPythonRunner::run( QStringLiteral( "sys.argv = ['%1']" ).arg( pythonArgs.replaceInStrings( QChar( '\'' ), QStringLiteral( "\\'" ) ).join( "','" ) ) );
+    QgsPythonRunner::setArgv( pythonArgs );
   }
 
   if ( !pythonfile.isEmpty() )
   {
-#ifdef Q_OS_WIN
-    //replace backslashes with forward slashes
-    pythonfile.replace( '\\', '/' );
-#endif
-    QgsPythonRunner::run( QStringLiteral( "with open('%1','r') as f: exec(f.read())" ).arg( pythonfile ) );
+    QgsPythonRunner::runFile( pythonfile );
   }
 
   /////////////////////////////////`////////////////////////////////////

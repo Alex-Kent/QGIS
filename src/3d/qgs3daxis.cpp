@@ -21,26 +21,19 @@
 #include <Qt3DExtras/QPhongMaterial>
 #include <Qt3DExtras/QConeMesh>
 #include <Qt3DRender/qcameralens.h>
-#include <Qt3DRender/QCameraSelector>
-#include <Qt3DRender/QClearBuffers>
-#include <Qt3DRender/QLayer>
-#include <Qt3DRender/QLayerFilter>
 #include <Qt3DRender/QPointLight>
 #include <Qt3DRender/QSortPolicy>
 #include <QWidget>
 #include <QScreen>
-#include <QShortcut>
 #include <QFontDatabase>
 #include <ctime>
 #include <QApplication>
 #include <QActionGroup>
 
-#include "qgsmapsettings.h"
 #include "qgs3dmapsettings.h"
 #include "qgs3dmapscene.h"
 #include "qgsterrainentity.h"
 #include "qgscoordinatereferencesystemutils.h"
-#include "qgscoordinatereferencesystem.h"
 #include "qgswindow3dengine.h"
 #include "qgsraycastingutils_p.h"
 #include "qgs3dwiredmesh_p.h"
@@ -64,6 +57,7 @@ Qgs3DAxis::Qgs3DAxis( Qgs3DMapCanvas *canvas, Qt3DCore::QEntity *parent3DScene, 
                                                          QgsFrameGraph::AXIS3D_RENDERVIEW );
 
   mRenderView = dynamic_cast<Qgs3DAxisRenderView *>( mMapScene->engine()->frameGraph()->renderView( QgsFrameGraph::AXIS3D_RENDERVIEW ) );
+  Q_ASSERT( mRenderView );
   constructAxisScene( parent3DScene );
   constructLabelsScene( parent3DScene );
 
@@ -75,8 +69,6 @@ Qgs3DAxis::Qgs3DAxis( Qgs3DMapCanvas *canvas, Qt3DCore::QEntity *parent3DScene, 
   onAxisViewportSizeUpdate();
 
   init3DObjectPicking();
-
-  createKeyboardShortCut();
 }
 
 Qgs3DAxis::~Qgs3DAxis()
@@ -124,16 +116,11 @@ void Qgs3DAxis::init3DObjectPicking()
   mAxisSceneEntity->addComponent( mScreenRayCaster );
 
   QObject::connect( mScreenRayCaster, &Qt3DRender::QScreenRayCaster::hitsChanged, this, &Qgs3DAxis::onTouchedByRay );
-
-  // we need event filter (see Qgs3DAxis::eventFilter) to handle the mouse click event as this event is not catchable via the Qt3DRender::QObjectPicker
-  mCanvas->installEventFilter( this );
 }
 
-bool Qgs3DAxis::eventFilter( QObject *watched, QEvent *event )
+// will be called by Qgs3DMapCanvas::eventFilter
+bool Qgs3DAxis::handleEvent( QEvent *event )
 {
-  if ( watched != mCanvas )
-    return false;
-
   if ( event->type() == QEvent::MouseButtonPress )
   {
     // register mouse click to detect dragging
@@ -272,32 +259,32 @@ void Qgs3DAxis::onTouchedByRay( const Qt3DRender::QAbstractRayCaster::Hits &hits
         {
           case 0: // "East face";
             QgsDebugMsgLevel( "Qgs3DAxis: East face clicked", 2 );
-            onCameraViewChangeEast();
+            mCameraController->rotateCameraToEast();
             break;
 
           case 1: // "West face ";
             QgsDebugMsgLevel( "Qgs3DAxis: West face clicked", 2 );
-            onCameraViewChangeWest();
+            mCameraController->rotateCameraToWest();
             break;
 
           case 2: // "North face ";
             QgsDebugMsgLevel( "Qgs3DAxis: North face clicked", 2 );
-            onCameraViewChangeNorth();
+            mCameraController->rotateCameraToNorth();
             break;
 
           case 3: // "South face";
             QgsDebugMsgLevel( "Qgs3DAxis: South face clicked", 2 );
-            onCameraViewChangeSouth();
+            mCameraController->rotateCameraToSouth();
             break;
 
           case 4: // "Top face ";
             QgsDebugMsgLevel( "Qgs3DAxis: Top face clicked", 2 );
-            onCameraViewChangeTop();
+            mCameraController->rotateCameraToTop();
             break;
 
           case 5: // "Bottom face ";
             QgsDebugMsgLevel( "Qgs3DAxis: Bottom face clicked", 2 );
-            onCameraViewChangeBottom();
+            mCameraController->rotateCameraToBottom();
             break;
 
           default:
@@ -447,39 +434,6 @@ void Qgs3DAxis::createAxisScene()
   }
 }
 
-void Qgs3DAxis::createKeyboardShortCut()
-{
-  QgsWindow3DEngine *eng = dynamic_cast<QgsWindow3DEngine *>( mMapScene->engine() );
-  if ( eng )
-  {
-    QWidget *mapCanvas = dynamic_cast<QWidget *>( eng->parent() );
-    if ( !mapCanvas )
-    {
-      QgsLogger::warning( "Qgs3DAxis: no canvas defined!" );
-    }
-    else
-    {
-      QShortcut *shortcutHome = new QShortcut( QKeySequence( Qt::CTRL + Qt::Key_1 ), mapCanvas );
-      connect( shortcutHome, &QShortcut::activated, this, [this]() { onCameraViewChangeHome(); } );
-
-      QShortcut *shortcutTop = new QShortcut( QKeySequence( Qt::CTRL + Qt::Key_5 ), mapCanvas );
-      connect( shortcutTop, &QShortcut::activated, this, [this]() { onCameraViewChangeTop(); } );
-
-      QShortcut *shortcutNorth = new QShortcut( QKeySequence( Qt::CTRL + Qt::Key_8 ), mapCanvas );
-      connect( shortcutNorth, &QShortcut::activated, this, [this]() { onCameraViewChangeNorth(); } );
-
-      QShortcut *shortcutEast = new QShortcut( QKeySequence( Qt::CTRL + Qt::Key_6 ), mapCanvas );
-      connect( shortcutEast, &QShortcut::activated, this, [this]() { onCameraViewChangeEast(); } );
-
-      QShortcut *shortcutSouth = new QShortcut( QKeySequence( Qt::CTRL + Qt::Key_2 ), mapCanvas );
-      connect( shortcutSouth, &QShortcut::activated, this, [this]() { onCameraViewChangeSouth(); } );
-
-      QShortcut *shortcutWest = new QShortcut( QKeySequence( Qt::CTRL + Qt::Key_4 ), mapCanvas );
-      connect( shortcutWest, &QShortcut::activated, this, [this]() { onCameraViewChangeWest(); } );
-    }
-  }
-}
-
 void Qgs3DAxis::createMenu()
 {
   mMenu = new QMenu();
@@ -600,21 +554,22 @@ void Qgs3DAxis::createMenu()
   mMenu->addMenu( vertPosMenu );
 
   // axis view menu
-  QAction *viewHomeAct = new QAction( tr( "&Home" ) + "\t Ctrl+1", mMenu );
-  QAction *viewTopAct = new QAction( tr( "&Top" ) + "\t Ctrl+5", mMenu );
+  // Make sure to sync the key combinations with QgsCameraController::keyboardEventFilter()!
+  QAction *viewHomeAct = new QAction( tr( "&Home" ) + "\t Ctrl+5", mMenu );
+  QAction *viewTopAct = new QAction( tr( "&Top" ) + "\t Ctrl+9", mMenu );
   QAction *viewNorthAct = new QAction( tr( "&North" ) + "\t Ctrl+8", mMenu );
   QAction *viewEastAct = new QAction( tr( "&East" ) + "\t Ctrl+6", mMenu );
   QAction *viewSouthAct = new QAction( tr( "&South" ) + "\t Ctrl+2", mMenu );
   QAction *viewWestAct = new QAction( tr( "&West" ) + "\t Ctrl+4", mMenu );
-  QAction *viewBottomAct = new QAction( tr( "&Bottom" ), mMenu );
+  QAction *viewBottomAct = new QAction( tr( "&Bottom" ) + "\t Ctrl+3", mMenu );
 
-  connect( viewHomeAct, &QAction::triggered, this, &Qgs3DAxis::onCameraViewChangeHome );
-  connect( viewTopAct, &QAction::triggered, this, &Qgs3DAxis::onCameraViewChangeTop );
-  connect( viewNorthAct, &QAction::triggered, this, &Qgs3DAxis::onCameraViewChangeNorth );
-  connect( viewEastAct, &QAction::triggered, this, &Qgs3DAxis::onCameraViewChangeEast );
-  connect( viewSouthAct, &QAction::triggered, this, &Qgs3DAxis::onCameraViewChangeSouth );
-  connect( viewWestAct, &QAction::triggered, this, &Qgs3DAxis::onCameraViewChangeWest );
-  connect( viewBottomAct, &QAction::triggered, this, &Qgs3DAxis::onCameraViewChangeBottom );
+  connect( viewHomeAct, &QAction::triggered, mCameraController, &QgsCameraController::rotateCameraToHome );
+  connect( viewTopAct, &QAction::triggered, mCameraController, &QgsCameraController::rotateCameraToTop );
+  connect( viewNorthAct, &QAction::triggered, mCameraController, &QgsCameraController::rotateCameraToNorth );
+  connect( viewEastAct, &QAction::triggered, mCameraController, &QgsCameraController::rotateCameraToEast );
+  connect( viewSouthAct, &QAction::triggered, mCameraController, &QgsCameraController::rotateCameraToSouth );
+  connect( viewWestAct, &QAction::triggered, mCameraController, &QgsCameraController::rotateCameraToWest );
+  connect( viewBottomAct, &QAction::triggered, mCameraController, &QgsCameraController::rotateCameraToBottom );
 
   QMenu *viewMenu = new QMenu( QStringLiteral( "Camera View" ), mMenu );
   viewMenu->addAction( viewHomeAct );
@@ -652,32 +607,6 @@ void Qgs3DAxis::onAxisModeChanged( Qgs3DAxisSettings::Mode mode )
   s.setMode( mode );
   mMapSettings->set3DAxisSettings( s );
 }
-
-void Qgs3DAxis::onCameraViewChange( float pitch, float yaw )
-{
-  QgsVector3D pos = mCameraController->lookingAtPoint();
-  double elevation = 0.0;
-  if ( mMapSettings->terrainRenderingEnabled() )
-  {
-    QgsDebugMsgLevel( "Checking elevation from terrain...", 2 );
-    QVector3D camPos = mCameraController->camera()->position();
-    QgsRayCastingUtils::Ray3D ray( camPos, pos.toVector3D() - camPos, mCameraController->camera()->farPlane() );
-    const QVector<QgsRayCastingUtils::RayHit> hits = mMapScene->terrainEntity()->rayIntersection( ray, QgsRayCastingUtils::RayCastContext() );
-    if ( !hits.isEmpty() )
-    {
-      elevation = hits.at( 0 ).pos.z();
-      QgsDebugMsgLevel( QString( "Computed elevation from terrain: %1" ).arg( elevation ), 2 );
-    }
-    else
-    {
-      QgsDebugMsgLevel( "Unable to obtain elevation from terrain", 2 );
-    }
-  }
-  pos.set( pos.x(), pos.y(), elevation + mMapSettings->terrainSettings()->elevationOffset() );
-
-  mCameraController->setLookingAtPoint( pos, ( mCameraController->camera()->position() - pos.toVector3D() ).length(), pitch, yaw );
-}
-
 
 void Qgs3DAxis::createCube()
 {
